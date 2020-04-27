@@ -1,13 +1,15 @@
-import paho.mqtt.client as mqtt
 import sys
 import uuid
 
-broker = 'iotfreetest.mqtt.iot.gz.baidubce.com'
+import paho.mqtt.client as mqtt
+
+broker = '111.229.168.108'
 port = 1883
-username = 'iotfreetest/thing01'
-password = 'YU7Tov8zFW+WuaLx9s9I3MKyclie9SGDuuNkl6o9LXo='
+username = 'userA'
+password = 'userfast'
 clientid = 'test_mqtt_python_' + str(uuid.uuid4())
-topic = 'demoTopic'
+topic = 'mTopic'
+
 
 def on_connect(client, userdata, rc):
     print('Connected. Client id is: ' + clientid)
@@ -17,11 +19,13 @@ def on_connect(client, userdata, rc):
     client.publish(topic, 'Message from Baidu IoT demo')
     print('MQTT message published.')
 
+
 def on_message(client, userdata, msg):
     msg = str(msg.payload, 'utf-8')
     print('MQTT message received: ' + msg)
     if msg == 'exit':
         sys.exit()
+
 
 client = mqtt.Client(clientid)
 client.on_connect = on_connect

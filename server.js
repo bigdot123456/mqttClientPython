@@ -1,14 +1,23 @@
 var Mqtt = require('mqtt');
 var RandomString = require('randomstring');
 
+// var mqttParam = {
+//     server: 'ssl://iotfreetest.mqtt.iot.gz.baidubce.com:1884',
+//     options: {
+//         username: 'iotfreetest/thing01',
+//         password: 'YU7Tov8zFW+WuaLx9s9I3MKyclie9SGDuuNkl6o9LXo=',
+//         clientId: 'test_mqtt_node_' + RandomString.generate()
+//     },
+//     topic: 'demoTopic'
+// };
 var mqttParam = {
-    server: 'ssl://iotfreetest.mqtt.iot.gz.baidubce.com:1884',
-    options: {
-        username: 'iotfreetest/thing01',
-        password: 'YU7Tov8zFW+WuaLx9s9I3MKyclie9SGDuuNkl6o9LXo=',
-        clientId: 'test_mqtt_node_' + RandomString.generate()
-    },
-    topic: 'demoTopic'
+     server: 'mqtt://111.229.168.108:1883',
+     options: {
+         username: 'userA',
+         password: 'userfast',
+         clientId: 'test_mqtt_node_' + RandomString.generate()
+     },
+     topic: 'mtopic'
 };
 
 var mqttClient = Mqtt.connect(mqttParam.server, mqttParam.options);
