@@ -2,21 +2,29 @@ import sys
 import uuid
 
 import paho.mqtt.client as mqtt
+import json
+
+def readconfig():
+    with open("read_json.json", 'r') as f:
+      temp = json.loads(f.read())
+      print(temp)
+      print(temp['rule'])
+      print(temp['rule']['namespace'])
 
 broker = '111.229.168.108'
 port = 1883
 username = 'userA'
 password = 'userfast'
-clientid = 'test_mqtt_python_' + str(uuid.uuid4())
-topic = 'mTopic'
+topic = 'mtopic'
 
+clientid = 'test_mqtt_python_' + str(uuid.uuid4())
 
 def on_connect(client, userdata, rc):
     print('Connected. Client id is: ' + clientid)
     client.subscribe(topic)
     print('Subscribed to topic: ' + topic)
 
-    client.publish(topic, 'Message from Baidu IoT demo')
+    client.publish(topic, 'Message from IoT demo')
     print('MQTT message published.')
 
 
