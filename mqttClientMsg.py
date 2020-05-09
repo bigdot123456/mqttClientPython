@@ -10,7 +10,7 @@ defaultServer = "111.229.168.108"
 defaultPort = 1883
 defaultUsername = 'userA'
 defaultPassword = 'userfast'
-defaultTopic = 'mTopic'
+defaultTopic = 'mtopic'
 
 class mqttClientMsg():
     broker = defaultServer
