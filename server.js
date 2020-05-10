@@ -17,7 +17,7 @@ var mqttParam = {
          password: 'userfast',
          clientId: 'test_mqtt_node_' + RandomString.generate()
      },
-     topic: 'mtopic'
+     topic: 'mtopic/js'
 };
 
 var mqttClient = Mqtt.connect(mqttParam.server, mqttParam.options);
@@ -38,6 +38,6 @@ mqttClient.on('connect', function() {
     mqttClient.subscribe(mqttParam.topic);
     console.log('Subscribed to topic: ' + mqttParam.topic)
 
-    mqttClient.publish(mqttParam.topic, 'Message from Baidu IoT demo');
+    mqttClient.publish(mqttParam.topic, 'Message from MAC:');
     console.log('MQTT message published.');
 });
