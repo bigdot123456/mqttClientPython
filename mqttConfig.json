@@ -3,5 +3,7 @@
   "port": 1883,
   "username": "userA",
   "password": "userfast",
-  "topic": "mtopic"
+  "topic": "mtopic",
+  "ptopic": "mtopic/python",
+  "stopic": "mtopic/#"
 }
