@@ -22,7 +22,6 @@ topic = 'mtopic'
 mqttClient= mqtt.Client(f"{clientid}|securemode=3,signmethod=hmacsha1|")
 mqttClient.username_pw_set(username, password)
 
-
 # 连接MQTT服务器
 def on_mqtt_connect():
     mqttClient.connect(MQTTHOST, MQTTPORT, 60)
@@ -33,8 +32,7 @@ def on_publish(topic, payload, qos):
     mqttClient.publish(topic, payload, qos)
 
 # 消息处理函数
-def on_message_come(lient, userdata, msg):
-
+def on_message_come(client, userdata, msg):
     print(msg.topic + " " + ":" + str(msg.payload))
 
 
@@ -44,10 +42,6 @@ def on_subscribe():
     mqttClient.subscribe("mtopic", 1)
     mqttClient.on_message = on_message_come # 消息到来处理函数
 
-# @sched.scheduled_job('cron', id='my_job_id', minute=1)
-sched = BlockingScheduler()
-
-# @sched.scheduled_job('cron', id='my_job_id', second=1)
 def mainloop():
     # 自定义Topic消息上行
     on_publish("mtopic", "Hello msg!", 1)
@@ -56,6 +50,7 @@ def mainloop():
     on_subscribe()
 
 def main():
+    sched = BlockingScheduler()
     on_mqtt_connect()
     sched.add_job(mainloop, 'interval', seconds=5)
     sched.start()

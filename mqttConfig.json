@@ -1,0 +1,7 @@
+{
+  "broker": "111.229.168.108",
+  "port": 1883,
+  "username": "userA",
+  "password": "userfast",
+  "topic": "mtopic"
+}
