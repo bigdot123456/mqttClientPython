@@ -2,17 +2,22 @@ import ast
 import json
 import time
 import uuid
+from datetime import datetime
+from functools import reduce
 
 import paho.mqtt.client as mqtt
 import pymysql
+import sqlalchemy
 from apscheduler.schedulers.blocking import BlockingScheduler
-# SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
+
+SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
+from mqttDB import Macmessagetable
 
-SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
+#SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
 # const pool0 = mysql.createPool({
 #   connectionLimit: 50,
 #   host: '127.0.0.1',
@@ -53,7 +58,7 @@ class MQTTClientWithDB():
         self.cfgName = cfgName
         self.clientid = clientid
         self.readconfig()
-        self.initDB1()
+        self.initDB()
         self.mqttClient = mqtt.Client(f"goog|securemode=3,signmethod=hmacsha1|")
         self.mqttClient.username_pw_set(self.username, self.password)
 
@@ -67,21 +72,79 @@ class MQTTClientWithDB():
         # self.engine.execute(f"delete from asset_checkresultpython where ID >0; ")
         print("Open Table for write data...")
         self.engine.execute(
-            "create table IF NOT EXISTS `MACMessageTable` (`clientID` varchar(32),`time` time, `topic` varchar(32),`message` varchar(1024) ); ")
+            """
+CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
+`clientID` varchar(32),
+`time` datetime, 
+`topic` varchar(128),
+`message` varchar(1024),
+ PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+"""
+        )
 
-    def initDB1(self):
-        self.connection = pymysql.connect(host=self.SQLServer,
-                                          user=self.SQLusername,
-                                          password=self.SQLpassword,
-                                          db=self.SQLdb,
+    def closDB(self):
+        self.s.close()
 
-                                          charset='utf8mb4',
-                                          cursorclass=pymysql.cursors.DictCursor)
+    def object_as_dict(obj):
+        return {c.key: getattr(obj, c.key)
+                for c in sqlalchemy.inspection.inspect(obj).mapper.column_attrs}
 
-        with self.connection.cursor() as cursor:
-            sql = "create table IF NOT EXISTS `MACMessageTable` (`clientID` varchar(32),`time` time, `topic` varchar(32),`message` varchar(1024) ); "
-            cursor.execute(sql)
-            self.connection.commit()
+    def list_dict_duplicate_removal(self, list_dict_data):
+        run_function = lambda x, y: x if y in x else x + [y]
+        return reduce(run_function, [[], ] + list_dict_data)
+
+    def build_dict(self, seq, key):
+        return dict((d[key], dict(d, index=i)) for (i, d) in enumerate(seq))
+
+    def LoadSQLData(self):
+
+        # self.nodeList = self.s.query(AssetLoadsqldatum).filter(text("ID < :value AND parentID = :pValue")).params(value=100, pValue=1)
+
+        # self.nodeList = self.s.query(AssetLoadsqldatum).filter(text("ID < :value ")).params(value=1000).order_by(
+        #     AssetLoadsqldatum.Balance.desc())
+
+        # self.nodeList = self.s.query(AssetLoadsqldatum).filter(text("ID < :value ")).params(value=Nums.MaxRecords).order_by(AssetLoadsqldatum.Balance.desc())
+        ## for test aim, we reshuffle it! desc() means order reverse
+        ## self.NodeList = self.NodeList[::2]+self.NodeList[1::2] ## error! since query object is not a list
+        ## load asset_fund
+
+        # #UserList=s.query(User)
+        # UserList=s.query(User).all()
+        # UserListdict = [u.__dict__ for u in UserList]
+        # print(UserListdict)
+        # UserListdict1 = [u._asdict() for u in UserList]
+        # print(UserListdict1)
+
+        ## 首先获得用户列表
+
+        # phone = Column(String(32), nullable=False, comment='phone number')
+        # email = Column(String(32), comment='email address')
+        # password = Column(String(64), comment='md5 of password')
+        # code = Column(String(10), comment='invitation code')
+        # mycode = Column(String(10), comment='my invitation code')
+        # id = Column(INTEGER(11), primary_key=True)
+        # paypassword = Column(String(64), comment='pay password')
+        #
+
+        # 字典反转的例子 {v: k for k, v in m.items()}
+
+        info = self.s.query(Macmessagetable.topic, Macmessagetable.clientID, Macmessagetable.message).all()
+        print(info[0])
+
+    # def initDB1(self):
+    #     self.connection = pymysql.connect(host=self.SQLServer,
+    #                                       user=self.SQLusername,
+    #                                       password=self.SQLpassword,
+    #                                       db=self.SQLdb,
+    #
+    #                                       charset='utf8mb4',
+    #                                       cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     with self.connection.cursor() as cursor:
+    #         sql = "create table IF NOT EXISTS `MACMessageTable` (`clientID` varchar(32),`time` time, `topic` varchar(32),`message` varchar(1024) ); "
+    #         cursor.execute(sql)
+    #         self.connection.commit()
 
     def readconfig(self):
         try:
@@ -92,12 +155,12 @@ class MQTTClientWithDB():
                 self.port = temp.get('port', defaultPort)
                 self.username = temp.get('username', defaultUsername)
                 self.password = temp.get('password', defaultPassword)
-                self.SQLServer = temp.get('SQLServer ', defaultSQLServer)
-                self.SQLdb = temp.get('SQLdb ', defaultSQLdb)
-
-                self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
-                self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
-
+                # self.SQLServer = temp.get('SQLServer ', defaultSQLServer)
+                # self.SQLdb = temp.get('SQLdb ', defaultSQLdb)
+                #
+                # self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
+                # self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
+                #
                 self.ptopic = temp.get('mtopic', defaultpTopic)
                 self.stopic = temp.get('mtopic', defaultsTopic)
         except:
@@ -123,18 +186,39 @@ class MQTTClientWithDB():
         except:
             print(f"cant insert {x}")
 
-    def insert_json(self, topic, info):
-        for key in info:
-            val = info[key]
+    def insert_json(self, topic, msg):
+        for key in msg:
+            val = msg[key]
             val=json.dumps(val)
             if len(val) > 1024:
                 val = val[0:1023]
-            sql = ""
-            with self.connection.cursor() as cursor:
-                sql = 'INSERT into MACMessageTable  (clientID,time,topic,message) VALUES ("%s", now(),"%s","%s")'
-                cursor.execute(sql, (key, topic, val))
-                print(f"{time.ctime()}:SQL insert {val}")
-        self.connection.commit()
+            info = Macmessagetable()
+            info.time=datetime.now().strftime("%Y-%m-%d %H:%M:%S") #time.asctime() # time.time()
+            info.topic=topic
+            info.message=val
+            info.clientID=key
+            self.s.add(info)
+
+        try:
+            # result = s.query(AssetLoadsqldatum).filter(AssetLoadsqldatum.ID == node.ID).all()
+            # if (result is None):
+            #     s.add(node)
+            # else:
+            #     # 不能整体替代，只能每个值替换
+            #     # s.query(AssetLoadsqldatum).filter(AssetLoadsqldatum.ID == node.ID).update(node)
+            #     s.query(AssetLoadsqldatum).filter(AssetLoadsqldatum.ID == node.ID).delete()
+            #     s.add(node)
+
+            self.s.commit()
+            print(f"sql insert {msg} ok!")
+        except pymysql.err.IntegrityError:
+            self.s.rollback()
+        except sqlalchemy.orm.exc.FlushError:
+            self.s.rollback()
+        except Exception as result:
+            print(f"sql insert: {result}!")
+            self.s.rollback()
+
 
     # subscribe 消息
     def on_subscribe(self):
