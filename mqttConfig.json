@@ -5,5 +5,9 @@
   "password": "userfast",
   "topic": "mtopic",
   "ptopic": "mtopic/python",
-  "stopic": "mtopic/#"
+  "stopic": "mtopic/#",
+  "SQLServer": "111.229.168.108",
+  "SQLdb": "fastroot",
+  "SQLusername": "fastroot",
+  "SQLpassword": "test123456"
 }

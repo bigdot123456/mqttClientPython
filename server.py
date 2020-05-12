@@ -22,11 +22,11 @@ clientid = 'test_mqtt_python_' + str(uuid.uuid4())
 
 def on_connect(client, userdata, rc):
     print('Connected. Client id is: ' + clientid)
-    client.subscribe(topic)
-    print('Subscribed to topic: ' + topic)
 
     client.publish(topic, 'Message from Baidu IoT demo')
     print('MQTT message published.')
+    client.subscribe(topic)
+    print('Subscribed to topic: ' + topic)
 
 def on_message(client, userdata, msg):
     msg = str(msg.payload, 'utf-8')

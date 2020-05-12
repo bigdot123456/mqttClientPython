@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import paho.mqtt.client as mqtt
@@ -6,6 +7,9 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 # https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
 
 # SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
 # const pool0 = mysql.createPool({
 #   connectionLimit: 50,
@@ -33,6 +37,18 @@ class MQTTClientWithDB():
         self.ptopic=ptopic
         self.stopic=stopic
 
+    def initDB(self):
+        self.engine = create_engine(SQLCODE)
+        # 创建会话
+        session = sessionmaker(self.engine)
+        self.s = session()
+        # 查询结果集, 对象模式，需要取出具体数据
+        # result = s.query(AssetLoadsqldatum).all()
+        # self.engine.execute(f"delete from asset_checkresultpython where ID >0; ")
+        print("Open Table for write data...")
+        self.engine.execute(
+            "create table IF NOT EXISTS `MACMessageTable` (`clientID` varchar(32),`time` time, `topic` varchar(32),`message` varchar(1024) ); ")
+
     def on_mqtt_connect(self):
         self.mqttClient.connect(MQTTHOST, MQTTPORT, 60)
         self.mqttClient.loop_start()
@@ -43,7 +59,19 @@ class MQTTClientWithDB():
 
     # 消息处理函数
     def on_message_come(self,client, userdata, msg):
-        print(msg.topic + " " + ":" + str(msg.payload))
+        info = json.loads(msg.payload)
+        self.insert_json(msg.topic, info)
+
+
+    def insert_json(self, topic, info):
+        for key in info:
+            val = info[key]
+
+            if len(val) > 1024:
+                val = val[0:1023]
+            sqlparams = f"INSERT MACMessageTable ('clientID','time','topic','message') VALUES ({key},{time.ctime()},{topic},{val}); "
+            print(f"run sql:{sqlparams}")
+            self.engine.execute(sqlparams)
 
     # subscribe 消息
     def on_subscribe(self):
@@ -63,7 +91,7 @@ class MQTTClientWithDB():
         sched = BlockingScheduler()
         self.on_mqtt_connect()
         # self.on_subscribe()
-        sched.add_job(self.mainloop, 'interval', seconds=3)
+        sched.add_job(self.mainloop, 'interval', seconds=10)
         self.on_subscribe()
         sched.start()
 
