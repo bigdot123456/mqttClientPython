@@ -1,6 +1,8 @@
 import ast
 import json
+import signal
 import ssl
+import time
 import uuid
 from datetime import datetime
 from functools import reduce
@@ -10,13 +12,19 @@ import pymysql
 import sqlalchemy
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+from python.mqttDB import Macmessagetable
+
+
 SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+global mqtt_looping
+mqtt_looping = True
+
 import sys
 sys.path.append("..")
-from mqttDB import *
+# from mqttDB import *
 
 # https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
 
@@ -51,6 +59,11 @@ defaultSQLdb="fastroot"
 defaultSQLUsername = 'fastroot'
 defaultSQLPassword = 'test123456'
 
+def on_message(mq, userdata, msg):
+    print("topic: %s" % msg.topic)
+    print("payload: %s" % msg.payload)
+    print("qos: %d" % msg.qos)
+
 class MQTTClientWithDB():
     broker="localhost"
     port=1883
@@ -66,9 +79,43 @@ class MQTTClientWithDB():
         self.clientid = clientid
         self.readconfig()
         self.initDB()
-        self.mqttClient = mqtt.Client(f"goog|securemode=3,signmethod=hmacsha1|")
-        self.mqttClient.username_pw_set(self.username, self.password)
 
+    def readconfig(self):
+        try:
+            print(f"start reading config files: {self.cfgName}...\n")
+            with open(self.cfgName, 'r') as f:
+                temp = json.loads(f.read())
+                self.broker = temp.get('broker', defaultServer)
+                self.port = temp.get('port', defaultPort)
+                self.username = temp.get('username', defaultUsername)
+                self.password = temp.get('password', defaultPassword)
+                # self.SQLServer = temp.get('SQLServer ', defaultSQLServer)
+                # self.SQLdb = temp.get('SQLdb ', defaultSQLdb)
+                #
+                # self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
+                # self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
+                #
+                self.ptopic = temp.get('ptopic', defaultpTopic)
+                self.stopic = temp.get('stopic', defaultsTopic)
+                self.sslEnable=temp.get('sslEnable', defaultsslEnable)
+                self.sslPath=temp.get('sslPath', defaultsslPath)
+        except:
+            print(f"should check config file {self.cfgName}")
+
+    def on_connect(self,mq, userdata, rc, _):
+        # subscribe when connected.
+        self.mqttClient.subscribe(self.stopic)
+
+    def on_message(mq, userdata, msg):
+        print("topic: %s" % msg.topic)
+        print("payload: %s" % msg.payload)
+        print("qos: %d" % msg.qos)
+
+    def mqtt_client_thread(self):
+        self.mqttClient = mqtt.Client(client_id=self.clientid)
+        self.mqttClient.username_pw_set(self.username, self.password)
+        self.mqttClient.on_message = self.on_message  # 消息到来处理函数
+        self.mqttClient.on_connect = self.on_connect
         if self.sslEnable == "True":
             cert_path = self.sslPath
             root_cert = cert_path + "ca/ca/ca.crt"
@@ -77,6 +124,32 @@ class MQTTClientWithDB():
             self.mqttClient.tls_set(root_cert, certfile=cert_file, keyfile=key_file, cert_reqs=ssl.CERT_REQUIRED,
                                     tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
 
+        self.mqttClient.on_connect = self.on_connect
+        self.mqttClient.on_message = on_message
+
+        try:
+            self.mqttClient.connect(self.broker, self.port, 15)
+        except:
+            print("MQTT Broker is not online. Connect later.")
+
+        mqtt_looping = True
+        print("Looping...")
+
+        # mqtt_loop.loop_forever()
+        cnt = 0
+        while mqtt_looping:
+            self.mqttClient.loop()
+            print(f"Looping..{cnt}")
+            cnt += 1
+            if cnt > 20:
+                try:
+                    self.mqttClient.reconnect()  # to avoid 'Broken pipe' error.
+                except:
+                    time.sleep(1)
+                cnt = 0
+
+        print("quit mqtt thread")
+        self.mqttClient.disconnect()
 
     def initDB(self):
         self.engine = create_engine(SQLCODE)
@@ -162,46 +235,7 @@ CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
     #         cursor.execute(sql)
     #         self.connection.commit()
 
-    def readconfig(self):
-        try:
-            print(f"start reading config files: {self.cfgName}...\n")
-            with open(self.cfgName, 'r') as f:
-                temp = json.loads(f.read())
-                self.broker = temp.get('broker', defaultServer)
-                self.port = temp.get('port', defaultPort)
-                self.username = temp.get('username', defaultUsername)
-                self.password = temp.get('password', defaultPassword)
-                # self.SQLServer = temp.get('SQLServer ', defaultSQLServer)
-                # self.SQLdb = temp.get('SQLdb ', defaultSQLdb)
-                #
-                # self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
-                # self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
-                #
-                self.ptopic = temp.get('ptopic', defaultpTopic)
-                self.stopic = temp.get('stopic', defaultsTopic)
-                self.sslEnable=temp.get('sslEnable', defaultsslEnable)
-                self.sslPath=temp.get('sslPath', defaultsslPath)
-        except:
-            print(f"should check config file {self.cfgName}")
 
-    def on_mqtt_connect(self):
-        self.mqttClient.connect(self.broker, self.port, 15)
-        self.mqttClient.loop_start()
-
-    # publish 消息
-    def on_publish(self, topic, payload, qos):
-        self.mqttClient.publish(topic, payload, qos)
-
-    # 消息处理函数
-    def on_message_come(self, client, userdata, msg):
-        x=str(msg.payload, 'utf-8')
-        try:
-            info = ast.literal_eval(x)
-            self.insert_json(msg.topic, info)
-        except ValueError:
-            print(f"receive error message:{x}")
-        except:
-            print(f"cant insert {x},try another record")
 
     def insert_hash(self, topic, msg):
         info = Macmessagetable()
@@ -244,28 +278,6 @@ CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
             self.s.rollback()
 
 
-    # subscribe 消息
-    def on_subscribe(self):
-        # 订阅监听自定义Topic
-        self.mqttClient.subscribe(self.stopic, 0)
-        self.mqttClient.on_message = self.on_message_come  # 消息到来处理函数
-
-    def mainloop(self):
-        # 自定义Topic消息上行
-        # self.on_publish(self.ptopic, "Hello msg!", 1)
-        # 系统属性Topic消息上行
-        self.on_publish(self.ptopic,
-                        "{\"method\":\"check it\",\"id\":\"1745506903\",\"params\":{\"Status\":1},\"version\":\"1.0.0\"}",
-                        1)
-
-    def main(self):
-        sched = BlockingScheduler()
-        self.on_mqtt_connect()
-        # self.on_subscribe()
-        sched.add_job(self.mainloop, 'interval', seconds=10)
-        self.on_subscribe()
-        sched.start()
-
 
 # def main():
 #     clientid = 'test_mqtt_python_' + str(uuid.uuid4())
@@ -273,9 +285,19 @@ CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
 #     t = MQTTClientWithDB(clientid,"mtopic")
 #     t.main()
 
+def stop_all(*args):
+
+    mqtt_looping = False
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, stop_all)
+    signal.signal(signal.SIGQUIT, stop_all)
+    signal.signal(signal.SIGINT, stop_all)  # Ctrl-C
+
     print("Start Test Mqtt client 123!")
     clientid = 'test_mqtt_python_' + str(uuid.uuid4())
 
     t = MQTTClientWithDB(clientid)
-    t.main()
+    t.mqtt_client_thread()
+    print("exit program")
+    sys.exit(0)

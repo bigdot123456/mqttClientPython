@@ -15,8 +15,11 @@ import sqlalchemy
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 import sys
+
+from python.mqttDB import Macmessagetable, Macblockinfo
+
 sys.path.append("..")
-from mqttDB import *
+# from mqttDB import *
 
 
 from sqlalchemy import create_engine
@@ -79,12 +82,14 @@ class MQTTClientWithDB():
         self.onlineAward = 0
 
         # Create the genesis block
-        self.new_block(previous_hash='1', proof=100)
+        # self.new_block(previous_hash='1', proof=100)
 
         self.cfgName = cfgName
         self.clientid = clientid
         self.readconfig()
         self.initDB()
+        self.initBlock()
+
         self.mqttClient = mqtt.Client(f"goog|securemode=3,signmethod=hmacsha1|")
         self.mqttClient.username_pw_set(self.username, self.password)
         self.mkdir(LogPATH)
@@ -180,6 +185,23 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
 ) ENGINE=InnoDB DEFAULT CHARSET=UTF8MB4;
 """
         )
+
+    def initBlock(self):
+        # self.s1.query("SELECT * FROM fastroot.macblockinfo order by blocknum desc limit 1;")
+        initblocks = self.s.query(Macblockinfo).order_by(Macblockinfo.blocknum.desc()).limit(1)
+        initblock=initblocks[0]
+        self.chainIndex=initblock.blocknum+1
+        self.current_transactions=initblock.transactions.split(" ")
+        self.timestamp=initblock.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        self.current_winner=initblock.winner
+        self.current_winHash=initblock.winnHash
+        self.winnerAward=initblock.winnerAward
+        self.onlineAward=initblock.onlineAward
+
+        # self.new_block(previous_hash='1', proof=100)
+
+        self.new_block(previous_hash=initblock.previoushash, proof=100)
+
 
     def closDB(self):
         self.s.close()
@@ -289,6 +311,7 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
     # 消息处理函数
     def on_message_come(self, client, userdata, msg):
         x = str(msg.payload, 'utf-8')
+        print(f"raw message: {x}")
         try:
             info = ast.literal_eval(x)
             self.insert_json(msg.topic, info)
@@ -320,6 +343,7 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
             if (key == "Msg"):
                 key = topic[9:-2]
                 self.q.put((key, val))
+                print(f"Que in: {key}")
 
         try:
             # result = s.query(AssetLoadsqldatum).filter(AssetLoadsqldatum.ID == node.ID).all()
@@ -360,9 +384,10 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
         onlineMiner = []
 
         l = self.q.qsize()
+        print(f"Que size: {l}")
         if l == 0:
             winner["ID"] = "0"
-            winner["winHash"] = "Empty Block"
+            winner["winHash"] = "*** Empty Block ****"
             self.winnerAward = 0
             self.onlineAward = 0
         else:
@@ -414,7 +439,7 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
         # Forge the new Block by adding it to the chain
         previoushash = hash(json.dumps(self.last_block))
         block = self.new_block(proof, previoushash)
-        # print(f"Generate Block:\n{block}")
+        print(f"Generate Block:\n{block}")
         print(f"Generate Block No.{self.chainIndex} at {datetime.now()}")
         with open(f"{LogPATH}/blockinfo.{datetime.now().strftime('%Y-%m-%d')}.json", 'a') as f:
             f.write(f"{block}\n")
