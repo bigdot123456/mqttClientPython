@@ -165,20 +165,20 @@ class MQTTClientWithDB():
         print("Looping...")
 
         # add schedule job
-        # schedule.every(30).seconds.do(self.run_threaded, self.job)
+        schedule.every(BLOCKTIME).seconds.do(self.run_threaded, self.job)
 
         # mqtt_loop.loop_forever()
         cnt = 0
 
         while mqtt_looping:
             self.mqttClient.loop()
-            #schedule.run_pending()
+            schedule.run_pending()
 
             # print(f"Looping..{cnt}")
             cnt += 1
             if cnt > 60:
                 try:
-                    self.job()
+                    # self.job() # use normal not schedule method
                     self.mqttClient.reconnect()  # to avoid 'Broken pipe' error.
                 except:
                     time.sleep(1)
