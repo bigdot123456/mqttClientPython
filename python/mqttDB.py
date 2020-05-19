@@ -242,6 +242,21 @@ class Fund(Base):
     production = Column(INTEGER(4), server_default=text("'0'"), comment='总产量')
 
 
+class Macblockinfo(Base):
+    __tablename__ = 'macblockinfo'
+
+    blocknum = Column(BIGINT(20), primary_key=True)
+    index = Column(BIGINT(20))
+    timestamp = Column(DateTime)
+    winner = Column(String(255))
+    winnHash = Column(String(64))
+    winnerAward = Column(INTEGER(11))
+    onlineAward = Column(Float)
+    proof = Column(BIGINT(20))
+    previoushash = Column(BIGINT(20))
+    transactions = Column(String(8192))
+
+
 class Macmessagetable(Base):
     __tablename__ = 'macmessagetable'
 
