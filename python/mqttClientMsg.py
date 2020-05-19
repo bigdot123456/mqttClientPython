@@ -2,6 +2,7 @@ import ast
 import json
 import signal
 import ssl
+import threading
 import time
 import uuid
 from datetime import datetime
@@ -9,6 +10,7 @@ from functools import reduce
 
 import paho.mqtt.client as mqtt
 import pymysql
+import schedule
 import sqlalchemy
 from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -59,10 +61,10 @@ defaultSQLdb="fastroot"
 defaultSQLUsername = 'fastroot'
 defaultSQLPassword = 'test123456'
 
-def on_message(mq, userdata, msg):
-    print("topic: %s" % msg.topic)
-    print("payload: %s" % msg.payload)
-    print("qos: %d" % msg.qos)
+# def on_message(mq, userdata, msg):
+#     print("topic: %s" % msg.topic)
+#     print("payload: %s" % msg.payload)
+#     print("qos: %d" % msg.qos)
 
 class MQTTClientWithDB():
     broker="localhost"
@@ -73,6 +75,7 @@ class MQTTClientWithDB():
     password = ""
 
     cfgName = "mqttConfig.json"
+    msgbuf=[]
 
     def __init__(self, clientid="MQTTClient", cfgName=defaultcfgName):
         self.cfgName = cfgName
@@ -106,10 +109,9 @@ class MQTTClientWithDB():
         # subscribe when connected.
         self.mqttClient.subscribe(self.stopic)
 
-    def on_message(mq, userdata, msg):
+    def on_message(self,mq, userdata, msg):
         print("topic: %s" % msg.topic)
-        print("payload: %s" % msg.payload)
-        print("qos: %d" % msg.qos)
+        self.msgbuf.append((msg.topic,msg.payload))
 
     def mqtt_client_thread(self):
         self.mqttClient = mqtt.Client(client_id=self.clientid)
@@ -125,7 +127,7 @@ class MQTTClientWithDB():
                                     tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
 
         self.mqttClient.on_connect = self.on_connect
-        self.mqttClient.on_message = on_message
+        self.mqttClient.on_message = self.on_message
 
         try:
             self.mqttClient.connect(self.broker, self.port, 15)
@@ -135,11 +137,14 @@ class MQTTClientWithDB():
         mqtt_looping = True
         print("Looping...")
 
+        # add schedule job
+        schedule.every(10).seconds.do(self.run_threaded, self.job)
         # mqtt_loop.loop_forever()
         cnt = 0
         while mqtt_looping:
             self.mqttClient.loop()
-            print(f"Looping..{cnt}")
+            schedule.run_pending()
+            # print(f"Looping..{cnt}")
             cnt += 1
             if cnt > 20:
                 try:
@@ -235,7 +240,12 @@ CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
     #         cursor.execute(sql)
     #         self.connection.commit()
 
+    def job(self):
+        print("I'm running on thread %s" % threading.current_thread())
 
+    def run_threaded(self,job_func):
+        job_thread = threading.Thread(target=job_func)
+        job_thread.start()
 
     def insert_hash(self, topic, msg):
         info = Macmessagetable()
