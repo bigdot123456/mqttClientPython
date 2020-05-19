@@ -1,5 +1,16 @@
-# mqttClientPython
-百度智能云工程师已在云端配置了物接入项目“iotfreetest”，并为其创建了设备“thing01”，给主题demoTopic设置了发布和订阅权限。您可以使用MQTT客户端或调用MQTT SDK进行连接测试。连接的用户名为“iotfreetest/thing01”，密码为“YU7Tov8zFW+WuaLx9s9I3MKyclie9SGDuuNkl6o9LXo=”。也可以参考以下步骤，运行工程代码测试消息收发。
+# 运行准备
+```bash
+ 1057  conda activate turtleDemo
+ 1058  pip install sqlacodegen
+ 1059  sqlacodegen
+ 1060  ./sqlORMgen.sh
+```
+## 开始运行
+```bash
+python ./python/mqttClient.py
+```
+## mqttClientPython
+已在云端配置了物接入项目“iotfreetest”，并为其创建了设备“thing01”，给主题demoTopic设置了发布和订阅权限。您可以使用MQTT客户端或调用MQTT SDK进行连接测试。连接的用户名为“iotfreetest/thing01”，密码为“YU7Tov8zFW+WuaLx9s9I3MKyclie9SGDuuNkl6o9LXo=”。也可以参考以下步骤，运行工程代码测试消息收发。
 
 * 预安装环境  
 

@@ -1,7 +1,6 @@
 import ast
 import json
 import ssl
-import time
 import uuid
 from datetime import datetime
 from functools import reduce
@@ -15,8 +14,11 @@ SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UT
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import sys
+sys.path.append("..")
+from mqttDB import *
+
 # https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
-from mqttDB import Macmessagetable
 
 #SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
 # const pool0 = mysql.createPool({

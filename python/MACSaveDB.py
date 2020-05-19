@@ -14,16 +14,16 @@ import pymysql
 import sqlalchemy
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from python.mqttDB import Macblockinfo
+import sys
+sys.path.append("..")
+from mqttDB import *
 
-SQLCODE = "mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
-from mqttDB import Macmessagetable
 
-# SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
 # const pool0 = mysql.createPool({
 #   connectionLimit: 50,
 #   host: '127.0.0.1',
@@ -33,14 +33,11 @@ from mqttDB import Macmessagetable
 #   multipleStatements: true //是否允许执行多条sql语句
 # });
 
-# MQTTHOST = '111.229.168.108'
-# MQTTPORT = 1883
-# username = 'userA'
-# password = 'userfast'
+
 BLOCKTIME = 10
-defaultcfgName = "../config/mqttConfig.json"
-# defaultServer = "104.233.164.173"
-defaultServer = "111.229.168.108"
+defaultcfgName = "./config/mqttConfig.json"
+defaultServer = "39.99.160.245"
+
 defaultPort = 1883
 defaultUsername = 'userA'
 defaultPassword = 'userfast'
@@ -49,7 +46,7 @@ defaultpTopic = 'mtopic'
 defaultsslEnable = "False"
 defaultsslPath = "../ca/"
 
-defaultSQLServer = "111.229.168.108"
+defaultSQLServer = "127.0.0.1"
 defaultSQLdb = "fastroot"
 defaultSQLUsername = 'fastroot'
 defaultSQLPassword = 'test123456'
@@ -68,7 +65,8 @@ class MQTTClientWithDB():
     password = ""
     q = queue.Queue()
     timestamp = ""
-
+    SQLCODE = "mysql+pymysql://fastroot:test123456@39.99.160.245/fastroot?charset=UTF8MB4"
+    # SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=UTF8MB4"
     cfgName = "mqttConfig.json"
 
     def __init__(self, clientid="MQTTClient", cfgName=defaultcfgName):
@@ -76,7 +74,7 @@ class MQTTClientWithDB():
         self.current_winHash = ""
         self.current_transactions = []
         self.chain = []
-        self.chainIndex = 0
+        self.chainIndex = -1
         self.winnerAward = 0
         self.onlineAward = 0
 
@@ -144,7 +142,8 @@ class MQTTClientWithDB():
         return hashlib.sha256(block_string).hexdigest()
 
     def initDB(self):
-        self.engine = create_engine(SQLCODE)
+        print(f"Connect DB with {self.SQLCODE} ...")
+        self.engine = create_engine(self.SQLCODE)
         # 创建会话
         session = sessionmaker(self.engine)
         self.s = session()
@@ -161,7 +160,7 @@ CREATE TABLE if not exists `macmessagetable` (`id` int8 NOT NULL AUTO_INCREMENT,
 `topic` varchar(128),
 `message` varchar(1024),
  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8MB4;
 """
         )
 
@@ -178,12 +177,13 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
 `previoushash` int8,
 `transactions` varchar(8192), -- should be 8192+32
  PRIMARY KEY (`blocknum`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=UTF8MB4;
 """
         )
 
     def closDB(self):
         self.s.close()
+        self.s1.close()
 
     def mkdir(self,path):
 
@@ -191,7 +191,7 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
 
         if not folder:  # 判断是否存在文件夹如果不存在则创建为文件夹
             os.makedirs(path)  # makedirs 创建文件时如果路径不存在会创建这个路径
-            print("Create log directory!")
+            print("Create log directory ...")
 
     def object_as_dict(obj):
         return {c.key: getattr(obj, c.key)
@@ -262,16 +262,19 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
                 self.port = temp.get('port', defaultPort)
                 self.username = temp.get('username', defaultUsername)
                 self.password = temp.get('password', defaultPassword)
-                # self.SQLServer = temp.get('SQLServer ', defaultSQLServer)
-                # self.SQLdb = temp.get('SQLdb ', defaultSQLdb)
-                #
-                # self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
-                # self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
-                #
+                self.SQLServer = temp.get('SQLServer', defaultSQLServer)
+                self.SQLdb = temp.get('SQLdb', defaultSQLdb)
+
+                self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
+                self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
+                # self.SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
+                self.SQLCODE=f"mysql+pymysql://{self.SQLusername}:{self.SQLpassword}@{self.SQLServer}/{self.SQLdb}?charset=UTF8MB4"
+
                 self.ptopic = temp.get('ptopic', defaultpTopic)
                 self.stopic = temp.get('stopic', defaultsTopic)
                 self.sslEnable = temp.get('sslEnable', defaultsslEnable)
                 self.sslPath = temp.get('sslPath', defaultsslPath)
+
         except:
             print(f"should check config file {self.cfgName}")
 
@@ -499,8 +502,9 @@ CREATE TABLE if not exists `macblockinfo` (`blocknum` int8 NOT NULL AUTO_INCREME
 #     t.main()
 
 if __name__ == "__main__":
-    print("Start Test Mqtt client 123!")
-    clientid = 'test_mqtt_python_' + str(uuid.uuid4())
+    dirname, filename = os.path.split(os.path.abspath(__file__))
+    print(f"Start Miner block generation in {dirname} with {filename}!")
+    clientid = 'MACDBServer_' + str(uuid.uuid4())
 
     t = MQTTClientWithDB(clientid)
     t.main()
