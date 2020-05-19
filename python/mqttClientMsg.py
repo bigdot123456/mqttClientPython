@@ -20,7 +20,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from python.mqttDB import Macmessagetable, Macblockinfo
 
-SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
+SQLCODE = "mysql+pymysql://fastroot:test123456@39.99.160.245/fastroot?charset=UTF8MB4"
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -31,9 +31,6 @@ import sys
 sys.path.append("..")
 # from mqttDB import *
 
-# https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
-
-#SQLCODE = "mysql+pymysql://tiger:test123456!@@127.0.0.1/test?charset=utf8"
 # const pool0 = mysql.createPool({
 #   connectionLimit: 50,
 #   host: '127.0.0.1',
@@ -120,7 +117,6 @@ class MQTTClientWithDB():
 
                 self.SQLusername = temp.get('SQLusername', defaultSQLUsername)
                 self.SQLpassword = temp.get('SQLpassword', defaultSQLPassword)
-                # self.SQLCODE="mysql+pymysql://fastroot:test123456@111.229.168.108/fastroot?charset=UTF8MB4"
                 self.SQLCODE = f"mysql+pymysql://{self.SQLusername}:{self.SQLpassword}@{self.SQLServer}/{self.SQLdb}?charset=UTF8MB4"
 
                 self.ptopic = temp.get('ptopic', defaultpTopic)

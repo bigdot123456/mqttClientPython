@@ -25,8 +25,6 @@ sys.path.append("..")
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# https://github.com/bigdot123456/MACNode/blob/master/MACCheckMySQL.py
-
 # const pool0 = mysql.createPool({
 #   connectionLimit: 50,
 #   host: '127.0.0.1',

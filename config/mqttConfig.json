@@ -12,9 +12,9 @@
   "//ptopic": "mtopic/python",
   "ptopic": "debug",
   "stopic": "mtopic/#",
-  "//SQLServer": "39.99.160.245",
-  "///SQLServer": "rm-8vb6e2d3bglco8t8758870.mysql.zhangbei.rds.aliyuncs.com",
-  "SQLServer": "127.0.0.1",
+  "SQLServer": "39.99.160.245",
+  "//SQLServer": "rm-8vb6e2d3bglco8t8758870.mysql.zhangbei.rds.aliyuncs.com",
+  "/SQLServer": "127.0.0.1",
   "SQLdb": "fastroot",
   "SQLusername": "fastroot",
   "SQLpassword": "test123456"
